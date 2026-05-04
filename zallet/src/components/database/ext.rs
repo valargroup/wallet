@@ -28,6 +28,20 @@ CREATE TABLE ext_zallet_db_wallet_metadata (
 )
 "#;
 
+/// Stores Zallet-owned compatibility metadata for alpha-breaking wallet database changes.
+///
+/// ### Columns
+///
+/// - `compatibility_epoch`: The Zallet wallet database compatibility epoch.
+/// - `migrated`: The time at which this epoch was recorded, as a string in the format
+///   `yyyy-MM-dd HH:mm:ss.fffffffzzz`.
+pub(crate) const TABLE_COMPATIBILITY_METADATA: &str = r#"
+CREATE TABLE ext_zallet_db_compatibility_metadata (
+    compatibility_epoch INTEGER NOT NULL,
+    migrated TEXT NOT NULL
+)
+"#;
+
 /// Stores metadata about the Zallet versions that the user has run with this database.
 ///
 /// ### Columns
