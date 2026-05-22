@@ -9,6 +9,8 @@ members = [
 exclude = [
     "vendor/core2-shim-0.3",
     "vendor/core2-shim-0.4",
+    "vendor/zebra-chain",
+    "vendor/zaino",
 ]
 resolver = "2"
 
@@ -121,7 +123,7 @@ zcash_encoding = "0.4"
 zcash_keys = { version = "0.13", features = ["transparent-inputs", "sapling", "orchard", "transparent-key-encoding"] }
 zcash_primitives = "0.27"
 zcash_proofs = "0.27"
-zcash_script = "0.4.3"
+zcash_script = "0.4.4"
 secp256k1 = { version = "0.29", features = ["recovery"] }
 
 # Zcash chain state
@@ -169,16 +171,17 @@ tonic = "0.14"
 # context and removal criteria.
 core2 = { path = "vendor/core2-shim-0.3" }
 core2_v04 = { package = "core2", path = "vendor/core2-shim-0.4" }
+zebra-chain = { path = "vendor/zebra-chain" }
 
 age = { git = "https://github.com/str4d/rage.git", rev = "92f437bc2a061312fa6633bb70c91eef91142fd4" }
 
 zewif = { git = "https://github.com/zcash/zewif.git", rev = "f84f80612813ba00a0a8a9a5f060bd217fa981cc" }
 zewif-zcashd = { git = "https://github.com/zcash/zewif-zcashd.git", rev = "9c72d1805c269f88ea5caa4eb33c6d38013b9776" }
 
-zaino-common = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-fetch = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-proto = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-state = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
+zaino-common = { path = "vendor/zaino/zaino-common" }
+zaino-fetch = { path = "vendor/zaino/zaino-fetch" }
+zaino-proto = { path = "vendor/zaino/zaino-proto" }
+zaino-state = { path = "vendor/zaino/zaino-state" }
 
 [profile.release]
 debug = "line-tables-only"

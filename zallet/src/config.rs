@@ -11,10 +11,11 @@ use documented::{Documented, DocumentedFields};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use zcash_client_backend::data_api::wallet::ConfirmationsPolicy;
-use zcash_protocol::consensus::NetworkType;
 
 use crate::commands::{lock_datadir, resolve_datadir_path};
-use crate::network::{Network, RegTestNuParam};
+use crate::network::{
+    ConfiguredActivationHeights, ConfiguredTestnet, Network, NetworkKind, RegTestNuParam,
+};
 
 #[cfg(zallet_build = "wallet")]
 use {
@@ -248,11 +249,35 @@ impl BuilderLimitsSection {
 pub struct ConsensusSection {
     /// Network type.
     #[serde(with = "crate::network::kind")]
-    pub network: NetworkType,
+    pub network: NetworkKind,
+
+    /// Configured Testnet name.
+    ///
+    /// Required if `network` is `configured-testnet`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_name: Option<String>,
+
+    /// Configured Testnet network magic bytes.
+    ///
+    /// Required if `network` is `configured-testnet`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network_magic: Option<[u8; 4]>,
+
+    /// Configured Testnet genesis block hash.
+    ///
+    /// Required if `network` is `configured-testnet`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub genesis_hash: Option<String>,
+
+    /// Configured Testnet activation heights.
+    ///
+    /// Ignored unless `network` is `configured-testnet`.
+    #[serde(default)]
+    pub activation_heights: ConfiguredActivationHeights,
 
     /// The parameters for regtest mode.
     ///
-    /// Ignored if `network` is not `NetworkType::Regtest`.
+    /// Ignored unless `network` is `regtest`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub regtest_nuparams: Vec<RegTestNuParam>,
 }
@@ -260,7 +285,11 @@ pub struct ConsensusSection {
 impl Default for ConsensusSection {
     fn default() -> Self {
         Self {
-            network: NetworkType::Main,
+            network: NetworkKind::Main,
+            network_name: None,
+            network_magic: None,
+            genesis_hash: None,
+            activation_heights: ConfiguredActivationHeights::default(),
             regtest_nuparams: vec![],
         }
     }
@@ -269,7 +298,32 @@ impl Default for ConsensusSection {
 impl ConsensusSection {
     /// Returns the network parameters for this wallet.
     pub fn network(&self) -> Network {
-        Network::from_type(self.network, &self.regtest_nuparams)
+        let configured_testnet = if self.network == NetworkKind::ConfiguredTestnet {
+            ConfiguredTestnet {
+                network_name: self
+                    .network_name
+                    .clone()
+                    .expect("configured-testnet requires consensus.network_name"),
+                network_magic: self
+                    .network_magic
+                    .expect("configured-testnet requires consensus.network_magic"),
+                genesis_hash: Some(
+                    self.genesis_hash
+                        .clone()
+                        .expect("configured-testnet requires consensus.genesis_hash"),
+                ),
+                activation_heights: self.activation_heights,
+            }
+        } else {
+            ConfiguredTestnet {
+                network_name: String::new(),
+                network_magic: [0; 4],
+                genesis_hash: None,
+                activation_heights: ConfiguredActivationHeights::default(),
+            }
+        };
+
+        Network::from_config(self.network, &self.regtest_nuparams, configured_testnet)
     }
 }
 
@@ -681,6 +735,10 @@ impl ZalletConfig {
                 "network",
                 crate::network::kind::Serializable(conf.consensus.network),
             ),
+            consensus("network_name", &conf.consensus.network_name),
+            consensus("network_magic", &conf.consensus.network_magic),
+            consensus("genesis_hash", &conf.consensus.genesis_hash),
+            consensus("activation_heights", &conf.consensus.activation_heights),
             consensus("regtest_nuparams", &conf.consensus.regtest_nuparams),
             database("wallet", conf.database.wallet_path()),
             external("broadcast", conf.external.broadcast()),

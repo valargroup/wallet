@@ -16,7 +16,7 @@ use crate::{
     config::{RpcAuthSection, ZalletConfig},
     error::{Error, ErrorKind},
     fl,
-    network::RegTestNuParam,
+    network::{NetworkKind, RegTestNuParam},
 };
 
 impl AsyncRunnable for MigrateZcashConfCmd {
@@ -503,7 +503,7 @@ fn build_actions() -> HashMap<&'static str, Action> {
             "regtest",
             "network",
             |config| &mut config.consensus.network,
-            |value| Ok((value == "1").then_some(zcash_protocol::consensus::NetworkType::Regtest)),
+            |value| Ok((value == "1").then_some(NetworkKind::Regtest)),
         ))
         // TODO: Support mapping multi-arg options.
         .chain(Action::ignore("rpcallowip"))
@@ -558,7 +558,7 @@ fn build_actions() -> HashMap<&'static str, Action> {
             "testnet",
             "network",
             |config| &mut config.consensus.network,
-            |value| Ok((value == "1").then_some(zcash_protocol::consensus::NetworkType::Test)),
+            |value| Ok((value == "1").then_some(NetworkKind::Test)),
         ));
 
     // Node options never used by the `zcashd` wallet. These can be safely ignored if

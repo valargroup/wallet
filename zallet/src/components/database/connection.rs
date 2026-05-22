@@ -80,7 +80,7 @@ impl deadpool::managed::Manager for WalletManager {
         Ok(DbConnection {
             inner,
             lock: self.lock.clone(),
-            params: self.params,
+            params: self.params.clone(),
         })
     }
 
@@ -112,7 +112,7 @@ impl DbConnection {
             let _guard = self.lock.read().unwrap();
             f(WalletDb::from_connection(
                 self.inner.lock().unwrap().as_ref(),
-                self.params,
+                self.params.clone(),
                 SystemClock,
                 OsRng,
             ))
@@ -127,7 +127,7 @@ impl DbConnection {
             let _guard = self.lock.write().unwrap();
             f(WalletDb::from_connection(
                 self.inner.lock().unwrap().as_mut(),
-                self.params,
+                self.params.clone(),
                 SystemClock,
                 OsRng,
             ))

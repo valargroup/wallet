@@ -225,7 +225,7 @@ impl MigrateZcashdWalletCmd {
         allow_multiple_wallet_imports: bool,
     ) -> Result<(), MigrateError> {
         let mut db_data = db.handle().await?;
-        let network_params = *db_data.params();
+        let network_params = db_data.params().clone();
         Self::check_network(wallet.network(), network_params.network_type())?;
 
         let existing_zcash_sourced_accounts = db_data.get_account_ids()?.into_iter().try_fold(

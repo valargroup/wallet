@@ -1,0 +1,46 @@
+[builder]
+
+[builder.limits]
+
+[consensus]
+network = "configured-testnet"
+network_name = "Kresko_nu7_pow_vultr_4_nu7_pow"
+network_magic = [107, 71, 229, 175]
+genesis_hash = "06be6cc9201043da1ce13ee1e595bad438a8af5da794d9510d03da2e62834fc4"
+
+[consensus.activation_heights]
+Overwinter = 5
+Sapling = 5
+Blossom = 5
+Heartwood = 5
+Canopy = 5
+NU5 = 5
+NU6 = 5
+"NU6.1" = 5
+NU7 = 2000
+
+[database]
+
+[external]
+
+[features]
+as_of_version = "0.1.0-alpha.3"
+
+[features.deprecated]
+
+[features.experimental]
+
+[indexer]
+validator_address = "155.138.237.238:18232"
+db_path = "zaino"
+
+[keystore]
+
+[note_management]
+
+[rpc]
+bind = ["127.0.0.1:28232"]
+
+[[rpc.auth]]
+user = "zallet"
+password = "nu7-testnet"

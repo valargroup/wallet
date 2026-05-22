@@ -18,6 +18,8 @@ regtest_nuparams = [
     "e9ff75a6:200",
 ]
 
+[consensus.activation_heights]
+
 [database]
 
 [external]

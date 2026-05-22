@@ -7,23 +7,28 @@ use zcash_protocol::{
 };
 
 /// Chain parameters for a Zcash consensus network.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Network {
     /// A public global consensus network.
     Consensus(consensus::Network),
+    /// A Zebra configured Testnet that uses Testnet address and coin type
+    /// constants with non-default consensus parameters.
+    ConfiguredTestnet(ConfiguredTestnet),
     /// A local network used for integration testing.
     RegTest(local_consensus::LocalNetwork),
 }
 
 impl Network {
-    pub(crate) fn from_type(
-        network_type: consensus::NetworkType,
+    pub(crate) fn from_config(
+        network_kind: NetworkKind,
         nuparams: &[RegTestNuParam],
+        configured_testnet: ConfiguredTestnet,
     ) -> Self {
-        match network_type {
-            consensus::NetworkType::Main => Self::Consensus(consensus::Network::MainNetwork),
-            consensus::NetworkType::Test => Self::Consensus(consensus::Network::TestNetwork),
-            consensus::NetworkType::Regtest => {
+        match network_kind {
+            NetworkKind::Main => Self::Consensus(consensus::Network::MainNetwork),
+            NetworkKind::Test => Self::Consensus(consensus::Network::TestNetwork),
+            NetworkKind::ConfiguredTestnet => Self::ConfiguredTestnet(configured_testnet),
+            NetworkKind::Regtest => {
                 let find_nu = |nu: consensus::BranchId| {
                     nuparams
                         .iter()
@@ -51,17 +56,29 @@ impl Network {
                     nu5,
                     nu6,
                     nu6_1,
+                    #[cfg(zcash_unstable = "nu7")]
+                    nu7: find_nu(consensus::BranchId::Nu7),
+                    #[cfg(zcash_unstable = "zfuture")]
+                    z_future: None,
                 })
             }
         }
     }
 
-    pub(crate) fn to_zaino(self) -> zaino_common::Network {
+    pub(crate) fn to_zaino(&self) -> zaino_common::Network {
         match self {
             Network::Consensus(network) => match network {
                 consensus::Network::MainNetwork => zaino_common::Network::Mainnet,
                 consensus::Network::TestNetwork => zaino_common::Network::Testnet,
             },
+            Network::ConfiguredTestnet(params) => {
+                zaino_common::Network::ConfiguredTestnet(zaino_common::ConfiguredTestnet {
+                    network_name: params.network_name.clone(),
+                    network_magic: params.network_magic,
+                    genesis_hash: params.genesis_hash.clone(),
+                    activation_heights: params.activation_heights.to_zaino(),
+                })
+            }
             // TODO: This does not create a compatible regtest network because Zebra does
             // not have the necessary flexibility.
             Network::RegTest(local_network) => {
@@ -74,7 +91,10 @@ impl Network {
                     canopy: local_network.canopy.map(|h| h.into()),
                     nu5: local_network.nu5.map(|h| h.into()),
                     nu6: local_network.nu6.map(|h| h.into()),
-                    nu6_1: None,
+                    nu6_1: local_network.nu6_1.map(|h| h.into()),
+                    #[cfg(zcash_unstable = "nu7")]
+                    nu7: local_network.nu7.map(|h| h.into()),
+                    #[cfg(not(zcash_unstable = "nu7"))]
                     nu7: None,
                 })
             }
@@ -86,6 +106,7 @@ impl consensus::Parameters for Network {
     fn network_type(&self) -> consensus::NetworkType {
         match self {
             Self::Consensus(params) => params.network_type(),
+            Self::ConfiguredTestnet(params) => params.network_type(),
             Self::RegTest(params) => params.network_type(),
         }
     }
@@ -93,7 +114,120 @@ impl consensus::Parameters for Network {
     fn activation_height(&self, nu: consensus::NetworkUpgrade) -> Option<BlockHeight> {
         match self {
             Self::Consensus(params) => params.activation_height(nu),
+            Self::ConfiguredTestnet(params) => params.activation_height(nu),
             Self::RegTest(params) => params.activation_height(nu),
+        }
+    }
+}
+
+/// The supported network configuration modes.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum NetworkKind {
+    /// Mainnet.
+    #[default]
+    Main,
+    /// Default public Testnet.
+    Test,
+    /// Zebra configured Testnet.
+    ConfiguredTestnet,
+    /// Regtest.
+    Regtest,
+}
+
+impl NetworkKind {
+    pub(crate) fn network_type(self) -> consensus::NetworkType {
+        match self {
+            Self::Main => consensus::NetworkType::Main,
+            Self::Test | Self::ConfiguredTestnet => consensus::NetworkType::Test,
+            Self::Regtest => consensus::NetworkType::Regtest,
+        }
+    }
+}
+
+/// Consensus parameters for Zebra configured Testnets.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct ConfiguredTestnet {
+    /// Configured Testnet name.
+    pub network_name: String,
+    /// Configured Testnet network magic bytes.
+    pub network_magic: [u8; 4],
+    /// Configured Testnet genesis block hash.
+    pub genesis_hash: Option<String>,
+    /// Configured Testnet activation heights.
+    #[serde(default)]
+    pub activation_heights: ConfiguredActivationHeights,
+}
+
+impl consensus::Parameters for ConfiguredTestnet {
+    fn network_type(&self) -> consensus::NetworkType {
+        consensus::NetworkType::Test
+    }
+
+    fn activation_height(&self, nu: consensus::NetworkUpgrade) -> Option<BlockHeight> {
+        self.activation_heights.activation_height(nu)
+    }
+}
+
+/// Configurable activation heights for Zebra configured Testnets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "PascalCase", deny_unknown_fields)]
+pub struct ConfiguredActivationHeights {
+    /// Activation height for `Overwinter`.
+    pub overwinter: Option<u32>,
+    /// Activation height for `Sapling`.
+    pub sapling: Option<u32>,
+    /// Activation height for `Blossom`.
+    pub blossom: Option<u32>,
+    /// Activation height for `Heartwood`.
+    pub heartwood: Option<u32>,
+    /// Activation height for `Canopy`.
+    pub canopy: Option<u32>,
+    /// Activation height for `NU5`.
+    #[serde(rename = "NU5")]
+    pub nu5: Option<u32>,
+    /// Activation height for `NU6`.
+    #[serde(rename = "NU6")]
+    pub nu6: Option<u32>,
+    /// Activation height for `NU6.1`.
+    #[serde(rename = "NU6.1")]
+    pub nu6_1: Option<u32>,
+    /// Activation height for `NU7`.
+    #[serde(rename = "NU7")]
+    pub nu7: Option<u32>,
+}
+
+impl ConfiguredActivationHeights {
+    fn activation_height(self, nu: consensus::NetworkUpgrade) -> Option<BlockHeight> {
+        let height = match nu {
+            consensus::NetworkUpgrade::Overwinter => self.overwinter,
+            consensus::NetworkUpgrade::Sapling => self.sapling,
+            consensus::NetworkUpgrade::Blossom => self.blossom,
+            consensus::NetworkUpgrade::Heartwood => self.heartwood,
+            consensus::NetworkUpgrade::Canopy => self.canopy,
+            consensus::NetworkUpgrade::Nu5 => self.nu5,
+            consensus::NetworkUpgrade::Nu6 => self.nu6,
+            consensus::NetworkUpgrade::Nu6_1 => self.nu6_1,
+            #[cfg(zcash_unstable = "nu7")]
+            consensus::NetworkUpgrade::Nu7 => self.nu7,
+            #[cfg(zcash_unstable = "zfuture")]
+            consensus::NetworkUpgrade::ZFuture => None,
+        };
+
+        height.map(BlockHeight::from_u32)
+    }
+
+    fn to_zaino(self) -> zaino_common::network::ActivationHeights {
+        zaino_common::network::ActivationHeights {
+            before_overwinter: None,
+            overwinter: self.overwinter,
+            sapling: self.sapling,
+            blossom: self.blossom,
+            heartwood: self.heartwood,
+            canopy: self.canopy,
+            nu5: self.nu5,
+            nu6: self.nu6,
+            nu6_1: self.nu6_1,
+            nu7: self.nu7,
         }
     }
 }
@@ -150,11 +284,23 @@ pub(crate) mod kind {
     use serde::{Deserializer, Serializer, de::Visitor};
     use zcash_protocol::consensus::NetworkType;
 
+    use super::NetworkKind;
+
     fn str_to_type(s: &str) -> Option<NetworkType> {
         match s {
             "main" => Some(NetworkType::Main),
             "test" => Some(NetworkType::Test),
             "regtest" => Some(NetworkType::Regtest),
+            _ => None,
+        }
+    }
+
+    fn str_to_kind(s: &str) -> Option<NetworkKind> {
+        match s {
+            "main" => Some(NetworkKind::Main),
+            "test" => Some(NetworkKind::Test),
+            "configured-testnet" => Some(NetworkKind::ConfiguredTestnet),
+            "regtest" => Some(NetworkKind::Regtest),
             _ => None,
         }
     }
@@ -167,22 +313,34 @@ pub(crate) mod kind {
         }
     }
 
+    fn kind_to_str(network_kind: &NetworkKind) -> &'static str {
+        match network_kind {
+            NetworkKind::Main => "main",
+            NetworkKind::Test => "test",
+            NetworkKind::ConfiguredTestnet => "configured-testnet",
+            NetworkKind::Regtest => "regtest",
+        }
+    }
+
     pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
-    ) -> Result<NetworkType, D::Error> {
+    ) -> Result<NetworkKind, D::Error> {
         struct NetworkTypeVisitor;
         impl Visitor<'_> for NetworkTypeVisitor {
-            type Value = NetworkType;
+            type Value = NetworkKind;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                write!(formatter, "one of 'main', 'test', or 'regtest'")
+                write!(
+                    formatter,
+                    "one of 'main', 'test', 'configured-testnet', or 'regtest'"
+                )
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                str_to_type(v).ok_or_else(|| {
+                str_to_kind(v).ok_or_else(|| {
                     serde::de::Error::invalid_type(serde::de::Unexpected::Str(v), &self)
                 })
             }
@@ -192,14 +350,14 @@ pub(crate) mod kind {
     }
 
     pub(crate) fn serialize<S: Serializer>(
-        network_type: &NetworkType,
+        network_kind: &NetworkKind,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(type_to_str(network_type))
+        serializer.serialize_str(kind_to_str(network_kind))
     }
 
     #[derive(serde::Serialize)]
-    pub(crate) struct Serializable(#[serde(with = "crate::network::kind")] pub(crate) NetworkType);
+    pub(crate) struct Serializable(#[serde(with = "crate::network::kind")] pub(crate) NetworkKind);
 
     pub(crate) struct Sql(pub(crate) NetworkType);
 

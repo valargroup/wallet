@@ -121,10 +121,11 @@ impl WalletSync {
         // Spawn the ongoing sync tasks.
         let chain_subscriber = chain.subscribe().await?.inner();
         let lower_boundary = current_boundary.clone();
+        let steady_state_params = params.clone();
         let steady_state_task = crate::spawn!("Steady state sync", async move {
             steady_state(
                 &chain_subscriber,
-                &params,
+                &steady_state_params,
                 db_data.as_mut(),
                 starting_tip,
                 lower_boundary,
@@ -137,10 +138,11 @@ impl WalletSync {
         let chain_subscriber = chain.subscribe().await?.inner();
         let mut db_data = db.handle().await?;
         let upper_boundary = current_boundary.clone();
+        let recover_history_params = params.clone();
         let recover_history_task = crate::spawn!("Recover history", async move {
             recover_history(
                 chain_subscriber,
-                &params,
+                &recover_history_params,
                 db_data.as_mut(),
                 upper_boundary,
                 1000,
@@ -163,10 +165,11 @@ impl WalletSync {
 
         let chain_subscriber = chain.subscribe().await?.inner();
         let mut db_data = db.handle().await?;
+        let data_requests_params = params;
         let data_requests_task = crate::spawn!("Data requests", async move {
             data_requests(
                 chain_subscriber,
-                &params,
+                &data_requests_params,
                 db_data.as_mut(),
                 req_tip_change_signal_receiver,
             )

@@ -79,14 +79,16 @@ impl Database {
                     )
                     .map_err(|e| ErrorKind::Init.context(e))?;
 
-                if wallet_network_type.0 == config.consensus.network {
+                let config_network_type = config.consensus.network.network_type();
+
+                if wallet_network_type.0 == config_network_type {
                     Ok(())
                 } else {
                     Err(ErrorKind::Init.context(fl!(
                         "err-init-config-db-mismatch",
                         db_network_type = crate::network::kind::type_to_str(&wallet_network_type.0),
                         config_network_type =
-                            crate::network::kind::type_to_str(&config.consensus.network),
+                            crate::network::kind::type_to_str(&config_network_type),
                     )))
                 }
             })?;

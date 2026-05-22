@@ -77,9 +77,29 @@
 # Network type.
 network = "main"
 
+# Configured Testnet name.
+#
+# Required if `network` is `configured-testnet`.
+#network_name = UNSET
+
+# Configured Testnet network magic bytes.
+#
+# Required if `network` is `configured-testnet`.
+#network_magic = UNSET
+
+# Configured Testnet genesis block hash.
+#
+# Required if `network` is `configured-testnet`.
+#genesis_hash = UNSET
+
+# Configured Testnet activation heights.
+#
+# Ignored unless `network` is `configured-testnet`.
+#activation_heights = {}
+
 # The parameters for regtest mode.
 #
-# Ignored if `network` is not `NetworkType::Regtest`.
+# Ignored unless `network` is `regtest`.
 #regtest_nuparams = []
 
 

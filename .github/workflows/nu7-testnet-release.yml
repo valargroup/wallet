@@ -1,0 +1,107 @@
+name: NU7 Testnet Zallet Release
+
+on:
+  push:
+    tags:
+      - "zallet-nu7-testnet-*"
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: "Release tag to create or update"
+        required: true
+        default: "zallet-nu7-testnet-v0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  ubuntu-binary:
+    name: Build Ubuntu binary
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.release-tag || github.ref_name }}
+      CXXFLAGS: "-include cstdint"
+      RUSTFLAGS: '--cfg zcash_unstable="nu7" --cfg zcash_unstable="zip235" --cfg zcash_unstable="nsm"'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            cmake \
+            libclang-dev \
+            pkg-config \
+            protobuf-compiler
+
+      - name: Build Zallet
+        run: cargo build --release --locked -p zallet
+
+      - name: Smoke test binary
+        run: target/release/zallet --help >/dev/null
+
+      - name: Package release artifacts
+        run: |
+          set -euo pipefail
+
+          package="zallet-${RELEASE_TAG}-ubuntu-x86_64"
+          mkdir -p "dist/${package}"
+          install -m 0755 target/release/zallet "dist/${package}/zallet"
+          install -m 0644 contrib/nu7-testnet/zallet.toml "dist/${package}/zallet.toml"
+          install -m 0644 contrib/nu7-testnet/README.md "dist/${package}/README.md"
+
+          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
+          sha256sum "dist/${package}.tar.gz" > "dist/${package}.tar.gz.sha256"
+
+          cat > release-notes.md <<'EOF'
+          NU7 configured-testnet Zallet build for the Valar Group testnet.
+
+          This is a testnet-only release. It includes:
+          - `zallet`
+          - `zallet.toml` preconfigured for the NU7 Kresko testnet
+          - concise startup instructions
+
+          Quick start:
+          ```sh
+          tar -xzf zallet-*-ubuntu-x86_64.tar.gz
+          cd zallet-*-ubuntu-x86_64
+          export ZALLET_DATADIR="$HOME/.zallet-nu7-testnet"
+          ./zallet --datadir "$ZALLET_DATADIR" --config "$(pwd)/zallet.toml" init-wallet-encryption
+          ./zallet --datadir "$ZALLET_DATADIR" --config "$(pwd)/zallet.toml" generate-mnemonic
+          ./zallet --datadir "$ZALLET_DATADIR" --config "$(pwd)/zallet.toml" start
+          ```
+
+          Zallet RPC is exposed locally at `127.0.0.1:28232` with username `zallet` and password `nu7-testnet`.
+          EOF
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: zallet-${{ env.RELEASE_TAG }}-ubuntu-x86_64
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
+              --target "$GITHUB_SHA" \
+              --title "Zallet NU7 testnet ${RELEASE_TAG}" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi

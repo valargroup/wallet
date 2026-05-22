@@ -7420,7 +7420,6 @@ dependencies = [
 [[package]]
 name = "zaino-common"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -7430,7 +7429,6 @@ dependencies = [
 [[package]]
 name = "zaino-fetch"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
@@ -7457,7 +7455,6 @@ dependencies = [
 [[package]]
 name = "zaino-proto"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
 dependencies = [
  "prost 0.13.5",
  "tonic 0.12.3",
@@ -7468,7 +7465,6 @@ dependencies = [
 [[package]]
 name = "zaino-state"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -7596,7 +7592,7 @@ dependencies = [
  "zcash_primitives 0.27.0",
  "zcash_proofs 0.27.0",
  "zcash_protocol 0.8.0",
- "zcash_script 0.4.3",
+ "zcash_script 0.4.4",
  "zcash_transparent 0.7.0",
  "zebra-chain",
  "zebra-rpc",
@@ -7695,7 +7691,7 @@ dependencies = [
  "zcash_note_encryption",
  "zcash_primitives 0.27.0",
  "zcash_protocol 0.8.0",
- "zcash_script 0.4.3",
+ "zcash_script 0.4.4",
  "zcash_transparent 0.7.0",
  "zip32 0.2.1",
  "zip321",
@@ -7742,7 +7738,7 @@ dependencies = [
  "zcash_keys 0.13.0",
  "zcash_primitives 0.27.0",
  "zcash_protocol 0.8.0",
- "zcash_script 0.4.3",
+ "zcash_script 0.4.4",
  "zcash_transparent 0.7.0",
  "zip32 0.2.1",
 ]
@@ -7998,7 +7994,7 @@ dependencies = [
  "zcash_encoding 0.4.0",
  "zcash_note_encryption",
  "zcash_protocol 0.8.0",
- "zcash_script 0.4.3",
+ "zcash_script 0.4.4",
  "zcash_transparent 0.7.0",
 ]
 
@@ -8105,9 +8101,9 @@ dependencies = [
 
 [[package]]
 name = "zcash_script"
-version = "0.4.3"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6ef9d04e0434a80b62ad06c5a610557be358ef60a98afa5dbc8ecaf19ad72e7"
+checksum = "774d808ab619b0f1887d7b90cd815c356101698d16aa681f3d2d9dea063de475"
 dependencies = [
  "bip32 0.6.0-pre.1",
  "bitflags 2.10.0",
@@ -8182,7 +8178,7 @@ dependencies = [
  "zcash_address 0.11.0",
  "zcash_encoding 0.4.0",
  "zcash_protocol 0.8.0",
- "zcash_script 0.4.3",
+ "zcash_script 0.4.4",
  "zcash_spec 0.2.1",
  "zip32 0.2.1",
 ]
@@ -8190,8 +8186,6 @@ dependencies = [
 [[package]]
 name = "zebra-chain"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17a86ec712da2f25d3edc7e5cf0b1d15ef41ab35305e253f0f7cd9cecc0f1939"
 dependencies = [
  "bech32 0.11.0",
  "bitflags 2.10.0",

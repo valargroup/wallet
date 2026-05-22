@@ -199,7 +199,7 @@ pub(crate) async fn call(
         }
     };
 
-    let params = *wallet.params();
+    let params = wallet.params().clone();
 
     // TODO: Fetch the real maximums within the account so we can detect correctly.
     //       https://github.com/zcash/wallet/issues/257
@@ -433,7 +433,7 @@ async fn run(
 ) -> RpcResult<SendResult> {
     let prover = LocalTxProver::bundled();
     let (wallet, txids) = crate::spawn_blocking!("z_sendmany prover", move || {
-        let params = *wallet.params();
+        let params = wallet.params().clone();
         create_proposed_transactions::<_, _, Infallible, _, Infallible, _>(
             wallet.as_mut(),
             &params,

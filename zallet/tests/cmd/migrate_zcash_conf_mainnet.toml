@@ -10,6 +10,8 @@ stdout = """
 [consensus]
 network = "main"
 
+[consensus.activation_heights]
+
 [database]
 
 [external]
