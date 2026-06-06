@@ -1,33 +1,40 @@
 //! Implementation of the `z_shieldcoinbase` RPC method.
 
-use std::convert::Infallible;
-use std::future::Future;
+use std::{
+    collections::BTreeSet,
+    convert::Infallible,
+    fmt::Debug,
+    future::Future,
+    hash::Hash,
+    sync::{LazyLock, Mutex},
+};
 
 use documented::Documented;
 use jsonrpsee::core::{JsonValue, RpcResult};
 use schemars::JsonSchema;
 use secrecy::ExposeSecret;
 use serde::Serialize;
-use transparent::address::TransparentAddress;
+use transparent::{address::TransparentAddress, bundle::OutPoint};
 use uuid::Uuid;
 use zaino_state::FetchServiceSubscriber;
 use zcash_address::ZcashAddress;
 use zcash_client_backend::{
     data_api::{
-        Account as _, InputSource, TransparentOutputFilter, WalletRead,
+        Account as _, AccountMeta, InputSource, NoteFilter, ReceivedNotes, TargetValue,
+        TransparentOutputFilter, WalletRead,
         wallet::{
             ConfirmationsPolicy, SpendingKeys, TargetHeight, create_proposed_transactions,
-            input_selection::GreedyInputSelector, propose_shielding_coinbase,
+            input_selection::{GreedyInputSelector, ShieldingSelector},
         },
     },
     fees::StandardFeeRule,
     proposal::Proposal,
-    wallet::OvkPolicy,
+    wallet::{Note, OvkPolicy, ReceivedNote, WalletTransparentOutput},
 };
 use zcash_client_sqlite::AccountUuid;
 use zcash_keys::{address::Address, keys::UnifiedSpendingKey};
 use zcash_proofs::prover::LocalTxProver;
-use zcash_protocol::value::Zatoshis;
+use zcash_protocol::{ShieldedProtocol, TxId, value::Zatoshis};
 
 use crate::components::json_rpc::payments::enforce_privacy_policy;
 use crate::{
@@ -140,9 +147,159 @@ pub(super) const PARAM_PRIVACY_POLICY_DESC: &str = "Policy for what information 
 /// the highest-value `n` UTXOs and leaves the rest for a subsequent call.
 pub(super) const COINBASE_INPUTS_WARN_THRESHOLD: u64 = 400;
 
+static RESERVED_TRANSPARENT_OUTPOINTS: LazyLock<Mutex<BTreeSet<OutPoint>>> =
+    LazyLock::new(|| Mutex::new(BTreeSet::new()));
+
+struct ReservedTransparentInputSource<'a, T> {
+    inner: &'a T,
+    reserved_outpoints: &'a BTreeSet<OutPoint>,
+}
+
+impl<'a, T> ReservedTransparentInputSource<'a, T> {
+    fn new(inner: &'a T, reserved_outpoints: &'a BTreeSet<OutPoint>) -> Self {
+        Self {
+            inner,
+            reserved_outpoints,
+        }
+    }
+}
+
+impl<T> InputSource for ReservedTransparentInputSource<'_, T>
+where
+    T: InputSource,
+    T::AccountId: Copy + Debug + Eq + Hash,
+    T::NoteRef: Copy + Debug + Eq + Ord,
+{
+    type Error = T::Error;
+    type AccountId = T::AccountId;
+    type NoteRef = T::NoteRef;
+
+    fn get_spendable_note(
+        &self,
+        txid: &TxId,
+        protocol: ShieldedProtocol,
+        index: u32,
+        target_height: TargetHeight,
+    ) -> Result<Option<ReceivedNote<Self::NoteRef, Note>>, Self::Error> {
+        self.inner
+            .get_spendable_note(txid, protocol, index, target_height)
+    }
+
+    fn select_spendable_notes(
+        &self,
+        account: Self::AccountId,
+        target_value: TargetValue,
+        sources: &[ShieldedProtocol],
+        target_height: TargetHeight,
+        confirmations_policy: ConfirmationsPolicy,
+        exclude: &[Self::NoteRef],
+    ) -> Result<ReceivedNotes<Self::NoteRef>, Self::Error> {
+        self.inner.select_spendable_notes(
+            account,
+            target_value,
+            sources,
+            target_height,
+            confirmations_policy,
+            exclude,
+        )
+    }
+
+    fn select_unspent_notes(
+        &self,
+        account: Self::AccountId,
+        sources: &[ShieldedProtocol],
+        target_height: TargetHeight,
+        exclude: &[Self::NoteRef],
+    ) -> Result<ReceivedNotes<Self::NoteRef>, Self::Error> {
+        self.inner
+            .select_unspent_notes(account, sources, target_height, exclude)
+    }
+
+    fn get_account_metadata(
+        &self,
+        account: Self::AccountId,
+        selector: &NoteFilter,
+        target_height: TargetHeight,
+        exclude: &[Self::NoteRef],
+    ) -> Result<AccountMeta, Self::Error> {
+        self.inner
+            .get_account_metadata(account, selector, target_height, exclude)
+    }
+
+    fn get_unspent_transparent_output(
+        &self,
+        outpoint: &OutPoint,
+        target_height: TargetHeight,
+    ) -> Result<Option<WalletTransparentOutput<Self::AccountId>>, Self::Error> {
+        if self.reserved_outpoints.contains(outpoint) {
+            Ok(None)
+        } else {
+            self.inner
+                .get_unspent_transparent_output(outpoint, target_height)
+        }
+    }
+
+    fn get_spendable_transparent_outputs(
+        &self,
+        address: &TransparentAddress,
+        target_height: TargetHeight,
+        confirmations_policy: ConfirmationsPolicy,
+        output_filter: TransparentOutputFilter,
+    ) -> Result<Vec<WalletTransparentOutput<Self::AccountId>>, Self::Error> {
+        let mut outputs = self.inner.get_spendable_transparent_outputs(
+            address,
+            target_height,
+            confirmations_policy,
+            output_filter,
+        )?;
+        outputs.retain(|output| !self.reserved_outpoints.contains(output.outpoint()));
+        Ok(outputs)
+    }
+}
+
+#[derive(Debug)]
+struct TransparentOutputReservation {
+    outpoints: BTreeSet<OutPoint>,
+}
+
+impl Drop for TransparentOutputReservation {
+    fn drop(&mut self) {
+        let mut reserved = RESERVED_TRANSPARENT_OUTPOINTS
+            .lock()
+            .expect("transparent output reservation mutex should not be poisoned");
+        for outpoint in &self.outpoints {
+            reserved.remove(outpoint);
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TransparentReservationConflict;
+
+fn current_reserved_transparent_outpoints() -> BTreeSet<OutPoint> {
+    RESERVED_TRANSPARENT_OUTPOINTS
+        .lock()
+        .expect("transparent output reservation mutex should not be poisoned")
+        .clone()
+}
+
+fn reserve_transparent_outpoints(
+    outpoints: BTreeSet<OutPoint>,
+) -> Result<TransparentOutputReservation, TransparentReservationConflict> {
+    let mut reserved = RESERVED_TRANSPARENT_OUTPOINTS
+        .lock()
+        .expect("transparent output reservation mutex should not be poisoned");
+    if outpoints.iter().any(|outpoint| reserved.contains(outpoint)) {
+        Err(TransparentReservationConflict)
+    } else {
+        reserved.extend(outpoints.iter().cloned());
+        Ok(TransparentOutputReservation { outpoints })
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn call(
-    mut wallet: DbHandle,
+    wallet: DbHandle,
     keystore: KeyStore,
     chain: FetchServiceSubscriber,
     fromaddress: String,
@@ -199,7 +356,16 @@ pub(crate) async fn call(
         })?;
 
     let params = *wallet.params();
-    let input_selector = GreedyInputSelector::new();
+    let target_height: TargetHeight = (wallet
+        .chain_height()
+        .map_err(|e| LegacyCode::Database.with_message(e.to_string()))?
+        .ok_or_else(|| {
+            LegacyCode::Wallet.with_static(
+                "Failed to propose shielding transaction: wallet chain height is unknown.",
+            )
+        })?
+        + 1)
+    .into();
 
     // Create the shielding proposal. Uses Zatoshis::ZERO as the shielding
     // threshold to shield all available coinbase UTXOs (or all up to `limit`
@@ -208,20 +374,35 @@ pub(crate) async fn call(
     // the resulting shielded payment, and produces no transparent or shielded
     // change (preserving the privacy invariant that a shielded change output
     // would let `toaddress` learn the sender's total selected-coinbase value).
-    let proposal = propose_shielding_coinbase::<_, _, _, _, Infallible>(
-        wallet.as_mut(),
-        &params,
-        &input_selector,
-        &StandardFeeRule::Zip317,
-        Zatoshis::ZERO,
-        &from_addrs,
-        to_zcash_address,
-        memo,
-        limit_usize,
-    )
-    .map_err(|e| {
-        LegacyCode::Wallet.with_message(format!("Failed to propose shielding transaction: {e}"))
-    })?;
+    let (proposal, reservation, reserved_snapshot) = loop {
+        let reserved_snapshot = current_reserved_transparent_outpoints();
+        let reserved_source =
+            ReservedTransparentInputSource::new(wallet.as_ref(), &reserved_snapshot);
+        let input_selector =
+            GreedyInputSelector::<ReservedTransparentInputSource<'_, DbConnection>>::new();
+
+        let proposal = input_selector
+            .propose_shielding_coinbase(
+                &params,
+                &reserved_source,
+                &StandardFeeRule::Zip317,
+                Zatoshis::ZERO,
+                &from_addrs,
+                to_zcash_address.clone(),
+                memo.clone(),
+                limit_usize,
+                target_height,
+            )
+            .map_err(|e| {
+                LegacyCode::Wallet
+                    .with_message(format!("Failed to propose shielding transaction: {e}"))
+            })?;
+
+        match reserve_transparent_outpoints(selected_transparent_outpoints(&proposal)) {
+            Ok(reservation) => break (proposal, reservation, reserved_snapshot),
+            Err(TransparentReservationConflict) => continue,
+        }
+    };
 
     // Coinbase shielding always reveals the transparent sender(s); when the proposal selects
     // from multiple source addresses (an account UUID expanded to >1 receivers that all hold
@@ -241,8 +422,12 @@ pub(crate) async fn call(
     // outputs that the proposal left unlocked.
     let (shielding_utxos, shielding_value_zats) = sum_selected_inputs(&proposal)?;
     let target_height = proposal.min_target_height();
-    let (total_utxos, total_value_zats) =
-        enumerate_eligible(wallet.as_mut(), &from_addrs, target_height)?;
+    let (total_utxos, total_value_zats) = enumerate_eligible(
+        wallet.as_ref(),
+        &from_addrs,
+        target_height,
+        &reserved_snapshot,
+    )?;
 
     let remaining_utxos = total_utxos.checked_sub(shielding_utxos).ok_or_else(|| {
         LegacyCode::Wallet.with_static(
@@ -319,6 +504,7 @@ pub(crate) async fn call(
             wallet,
             chain,
             proposal,
+            reservation,
             #[cfg(feature = "zcashd-import")]
             SpendingKeys::new(usk, standalone_keys),
             #[cfg(not(feature = "zcashd-import"))]
@@ -470,15 +656,31 @@ fn sum_selected_inputs(
     Ok((count, sum))
 }
 
+fn selected_transparent_outpoints(
+    proposal: &Proposal<StandardFeeRule, Infallible>,
+) -> BTreeSet<OutPoint> {
+    proposal
+        .steps()
+        .iter()
+        .flat_map(|step| {
+            step.transparent_inputs()
+                .iter()
+                .map(|utxo| utxo.outpoint().clone())
+        })
+        .collect()
+}
+
 fn enumerate_eligible(
-    wallet: &mut DbConnection,
+    wallet: &DbConnection,
     from_addrs: &[TransparentAddress],
     target_height: TargetHeight,
+    reserved_outpoints: &BTreeSet<OutPoint>,
 ) -> RpcResult<(u64, Zatoshis)> {
+    let source = ReservedTransparentInputSource::new(wallet, reserved_outpoints);
     let mut total_utxos: u64 = 0;
     let mut total_value_zats = Zatoshis::ZERO;
     for addr in from_addrs {
-        let utxos = wallet
+        let utxos = source
             .get_spendable_transparent_outputs(
                 addr,
                 target_height,
@@ -503,6 +705,7 @@ async fn run(
     mut wallet: DbHandle,
     chain: FetchServiceSubscriber,
     proposal: Proposal<StandardFeeRule, Infallible>,
+    reservation: TransparentOutputReservation,
     spending_keys: SpendingKeys,
 ) -> RpcResult<SendResult> {
     let prover = LocalTxProver::bundled();
@@ -527,7 +730,9 @@ async fn run(
         LegacyCode::Wallet.with_message(format!("Failed to build shielding transaction: {e}"))
     })?;
 
-    broadcast_transactions(&wallet, chain, txids.into()).await
+    let result = broadcast_transactions(&wallet, chain, txids.into()).await;
+    drop(reservation);
+    result
 }
 
 #[cfg(test)]
@@ -686,5 +891,51 @@ mod tests {
     fn privacy_policy_rejects_unknown_string() {
         let err = parse_privacy_policy(Some("not-a-policy"), &taddr_input()).unwrap_err();
         assert_eq!(err.code(), LegacyCode::InvalidParameter as i32);
+    }
+
+    fn outpoint(tag: u8, index: u32) -> OutPoint {
+        OutPoint::new([tag; 32], index)
+    }
+
+    fn outpoint_set(outpoints: impl IntoIterator<Item = OutPoint>) -> BTreeSet<OutPoint> {
+        outpoints.into_iter().collect()
+    }
+
+    #[test]
+    fn reservation_rejects_overlap_until_guard_drops() {
+        let first = outpoint(0xa1, 0);
+        let second = outpoint(0xa1, 1);
+
+        let first_reservation =
+            reserve_transparent_outpoints(outpoint_set([first.clone()])).unwrap();
+        assert!(reserve_transparent_outpoints(outpoint_set([first.clone()])).is_err());
+
+        let second_reservation =
+            reserve_transparent_outpoints(outpoint_set([second.clone()])).unwrap();
+        drop(second_reservation);
+
+        assert!(reserve_transparent_outpoints(outpoint_set([first.clone()])).is_err());
+        drop(first_reservation);
+
+        let first_reservation = reserve_transparent_outpoints(outpoint_set([first])).unwrap();
+        drop(first_reservation);
+    }
+
+    #[test]
+    fn current_reserved_outpoints_reports_active_reservations() {
+        let reserved_outpoint = outpoint(0xa2, 0);
+        let reservation =
+            reserve_transparent_outpoints(outpoint_set([reserved_outpoint.clone()])).unwrap();
+
+        assert!(
+            current_reserved_transparent_outpoints().contains(&reserved_outpoint),
+            "active reservations should be visible in the snapshot"
+        );
+
+        drop(reservation);
+        assert!(
+            !current_reserved_transparent_outpoints().contains(&reserved_outpoint),
+            "dropped reservations should be released"
+        );
     }
 }

@@ -50,6 +50,8 @@ be considered breaking changes.
   The keystore's standalone-key decryption is now invoked only for addresses
   that were imported standalone; HD-derived addresses are signed for using
   the account's unified spending key.
+- Overlapping `z_shieldcoinbase` calls no longer select the same coinbase UTXOs
+  while an earlier shielding operation is still building and broadcasting.
 
 ## [0.1.0-alpha.3] - 2025-12-15
 
