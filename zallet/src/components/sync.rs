@@ -91,6 +91,10 @@ pub(crate) use error::SyncError;
 mod steps;
 use steps::ChainBlock;
 
+fn zaino_tx_height_to_block_height(height: i32) -> Option<BlockHeight> {
+    u32::try_from(height).ok().map(BlockHeight::from_u32)
+}
+
 #[derive(Debug)]
 pub(crate) struct WalletSync {}
 
@@ -601,7 +605,7 @@ pub(crate) async fn fetch_transparent_utxos(
 
         let parse_height = tx_obj
             .height()
-            .map(BlockHeight::from_u32)
+            .and_then(zaino_tx_height_to_block_height)
             .unwrap_or(mined_height);
         let tx = match Transaction::read(
             tx_obj.hex().as_ref(),
@@ -681,7 +685,7 @@ async fn data_requests(
                         Ok(zebra_rpc::methods::GetRawTransaction::Raw(_)) => unreachable!(),
                         Ok(zebra_rpc::methods::GetRawTransaction::Object(tx)) => tx
                             .height()
-                            .map(BlockHeight::from_u32)
+                            .and_then(zaino_tx_height_to_block_height)
                             .map(TransactionStatus::Mined)
                             .unwrap_or(TransactionStatus::NotInMainChain),
                         // TODO: Zaino is not correctly parsing the error response, so we
@@ -712,7 +716,8 @@ async fn data_requests(
                         // with an enum variant that should never occur.
                         Ok(zebra_rpc::methods::GetRawTransaction::Raw(_)) => unreachable!(),
                         Ok(zebra_rpc::methods::GetRawTransaction::Object(tx)) => {
-                            let mined_height = tx.height().map(BlockHeight::from_u32);
+                            let mined_height =
+                                tx.height().and_then(zaino_tx_height_to_block_height);
 
                             // TODO: Zaino should either be doing the tx parsing for us,
                             // or telling us the consensus branch ID for which the tx is
@@ -841,7 +846,7 @@ async fn data_requests(
                             zebra_rpc::methods::GetRawTransaction::Object(tx) => tx,
                         };
 
-                        let mined_height = tx.height().map(BlockHeight::from_u32);
+                        let mined_height = tx.height().and_then(zaino_tx_height_to_block_height);
 
                         // Ignore transactions that don't match the status filter.
                         match (&req.tx_status_filter(), mined_height) {

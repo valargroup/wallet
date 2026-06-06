@@ -2,13 +2,11 @@
 members = [
     "zallet",
 ]
-# `vendor/core2-shim-0.3` and `vendor/core2-shim-0.4` are referenced from the
-# `[patch.crates-io]` table below, but excluded from the workspace because
-# Cargo requires workspace member crate names to be unique and both shims must
-# be named `core2` to satisfy the resolver.
+# `vendor/core2-shim-0.3` is referenced from the `[patch.crates-io]` table below,
+# but excluded from the workspace because the shim must be named `core2` to
+# satisfy the resolver.
 exclude = [
     "vendor/core2-shim-0.3",
-    "vendor/core2-shim-0.4",
 ]
 resolver = "2"
 
@@ -129,10 +127,10 @@ secp256k1 = { version = "0.29", features = ["recovery"] }
 zaino-common = "0.1"
 zaino-fetch = "0.1"
 zaino-proto = "0.1"
-zaino-state = "0.1"
-zebra-chain = "2.0"
-zebra-rpc = "2.0.1"
-zebra-state = "2.0"
+zaino-state = "0.2"
+zebra-chain = "9.0"
+zebra-rpc = "9.0"
+zebra-state = "8.0"
 
 # Zcash wallet
 deadpool = "0.12"
@@ -182,25 +180,37 @@ zcash_primitives = { git = "https://github.com/zcash/librustzcash.git", rev = "2
 zcash_proofs = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
 zcash_protocol = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
 
+# TEMPORARY: Zebra 9 depends on libzcash_script. The crates.io release can be
+# built with an older bindgen that cannot parse the crate's rust-version. Drop
+# this patch once libzcash_script has a crates.io release with that build fix.
+libzcash_script = { git = "https://github.com/ZcashFoundation/zcash_script.git", tag = "zcash_script-v0.4.5" }
+zcash_script = { git = "https://github.com/ZcashFoundation/zcash_script.git", tag = "zcash_script-v0.4.5" }
+
 # TEMPORARY: All `core2` versions on crates.io were yanked by upstream on
 # 2026-04-14, breaking fresh dependency resolution because we still pull
-# `core2 ^0.3` (via `equihash 0.2.2`) and `core2 ^0.4` (via `zaino-state`)
-# transitively. Both entries below redirect those `core2` requests to local
-# shims that re-export `corez` (the Zcash ecosystem's clean-room replacement,
-# https://github.com/zcash/corez). See `vendor/core2-shim-0.3/README.md` for
+# `core2 ^0.3` transitively via `equihash 0.2.2`. The entry below redirects
+# that `core2` request to a local shim that re-exports `corez`, the Zcash
+# ecosystem's clean-room replacement. See `vendor/core2-shim-0.3/README.md` for
 # context and removal criteria.
 core2 = { path = "vendor/core2-shim-0.3" }
-core2_v04 = { package = "core2", path = "vendor/core2-shim-0.4" }
+
+# TEMPORARY: `zewif-zcashd 0.1` depends on `orchard ^0.10`, and all matching
+# crates.io releases have been yanked. That old Orchard line also depends on
+# yanked Halo2 gadget releases. Fresh dependency resolution breaks when CI
+# deletes `Cargo.lock`, so pin the exact source tags until `zewif-zcashd` moves
+# to an unyanked Orchard release.
+orchard = { git = "https://github.com/zcash/orchard.git", rev = "ca77cd8232339d9ab322ff8344454b1dc861882f" }
+halo2_gadgets = { git = "https://github.com/zcash/halo2.git", rev = "263356784042d7d4c1c17d357c94c1acaeb75ab5" }
 
 age = { git = "https://github.com/str4d/rage.git", rev = "92f437bc2a061312fa6633bb70c91eef91142fd4" }
 
 zewif = { git = "https://github.com/zcash/zewif.git", rev = "f84f80612813ba00a0a8a9a5f060bd217fa981cc" }
 zewif-zcashd = { git = "https://github.com/zcash/zewif-zcashd.git", rev = "9c72d1805c269f88ea5caa4eb33c6d38013b9776" }
 
-zaino-common = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-fetch = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-proto = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
-zaino-state = { git = "https://github.com/zingolabs/zaino.git", rev = "15b81f110349b34090341b3ab8b7cd58c7b9aeef" }
+zaino-common = { git = "https://github.com/valargroup/zaino.git", rev = "59b477e0595e96bb866186aeb8a055edacb00e76" }
+zaino-fetch = { git = "https://github.com/valargroup/zaino.git", rev = "59b477e0595e96bb866186aeb8a055edacb00e76" }
+zaino-proto = { git = "https://github.com/valargroup/zaino.git", rev = "59b477e0595e96bb866186aeb8a055edacb00e76" }
+zaino-state = { git = "https://github.com/valargroup/zaino.git", rev = "59b477e0595e96bb866186aeb8a055edacb00e76" }
 
 [profile.release]
 debug = "line-tables-only"

@@ -7,7 +7,8 @@ use jsonrpsee::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use zaino_state::FetchServiceSubscriber;
+use zaino_proto::proto::service::BlockId;
+use zaino_state::{FetchServiceSubscriber, LightWalletIndexer};
 use zcash_client_backend::{
     data_api::{Account as _, AccountBirthday, WalletRead, WalletWrite},
     proto::service::TreeState,
@@ -87,8 +88,10 @@ pub(crate) async fn call(
 
         let treestate = {
             let treestate = chain
-                .fetcher
-                .get_treestate(treestate_height.to_string())
+                .get_tree_state(BlockId {
+                    height: u64::from(u32::from(treestate_height)),
+                    hash: vec![],
+                })
                 .await
                 .map_err(|e| {
                     LegacyCode::InvalidParameter.with_message(format!(
@@ -105,20 +108,8 @@ pub(crate) async fn call(
                 height: u64::try_from(treestate.height).map_err(|_| RpcErrorCode::InternalError)?,
                 hash: treestate.hash,
                 time: treestate.time,
-                sapling_tree: treestate
-                    .sapling
-                    .commitments()
-                    .final_state()
-                    .as_ref()
-                    .map(hex::encode)
-                    .unwrap_or_default(),
-                orchard_tree: treestate
-                    .orchard
-                    .commitments()
-                    .final_state()
-                    .as_ref()
-                    .map(hex::encode)
-                    .unwrap_or_default(),
+                sapling_tree: treestate.sapling_tree,
+                orchard_tree: treestate.orchard_tree,
             }
         };
 
