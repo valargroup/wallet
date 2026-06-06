@@ -158,9 +158,9 @@ pub(crate) async fn call(
 )> {
     // `fee` exists for positional compatibility with `zcashd`'s
     // `z_shieldcoinbase` only — Zallet always computes the fee internally.
-    // Reject any non-null value so callers can't silently believe they're
-    // configuring it.
-    if fee.is_some() {
+    // Accept both omission and explicit JSON null; reject any other value
+    // so callers can't silently believe they're configuring it.
+    if fee.as_ref().is_some_and(|v| !v.is_null()) {
         return Err(LegacyCode::InvalidParameter
             .with_static("Zallet always calculates fees internally; the fee field must be null."));
     }
