@@ -72,7 +72,7 @@ serde = { version = "1", features = ["serde_derive"] }
 semver = "1"
 serde_json = { version = "1", features = ["arbitrary_precision", "raw_value"] }
 toml = "0.8"
-zcash_address = "0.11"
+zcash_address = "0.12"
 
 # Randomness
 rand = "0.8"
@@ -112,16 +112,16 @@ tracing-log = "0.2"
 tracing-subscriber = "0.3"
 
 # Zcash consensus
-zcash_protocol = "0.8"
+zcash_protocol = "0.9"
 
 # Zcash payment protocols
-orchard = "0.13"
+orchard = "0.14"
 sapling = { package = "sapling-crypto", version = "0.7" }
-transparent = { package = "zcash_transparent", version = "0.7" }
+transparent = { package = "zcash_transparent", version = "0.8" }
 zcash_encoding = "0.4"
-zcash_keys = { version = "0.13", features = ["transparent-inputs", "sapling", "orchard", "transparent-key-encoding"] }
-zcash_primitives = "0.27"
-zcash_proofs = "0.27"
+zcash_keys = { version = "0.14", features = ["transparent-inputs", "sapling", "orchard", "transparent-key-encoding"] }
+zcash_primitives = "0.28"
+zcash_proofs = "0.28"
 zcash_script = "0.4.3"
 secp256k1 = { version = "0.29", features = ["recovery"] }
 
@@ -145,8 +145,8 @@ schemerz-rusqlite = "0.370.0"
 shardtree = "0.6"
 time = "0.3"
 uuid = "1"
-zcash_client_backend = "0.22"
-zcash_client_sqlite = "0.20"
+zcash_client_backend = "0.23"
+zcash_client_sqlite = "0.21"
 zcash_note_encryption = "0.4"
 zip32 = "0.2"
 bip32 = "0.2"
@@ -162,22 +162,25 @@ tonic = "0.14"
 
 [patch.crates-io]
 # TEMPORARY: Pin librustzcash crates to upstream main
-# (zcash/librustzcash@dad6ebed5c, the merge commit for PR #2376) so that
-# we can consume the `propose_shielding_coinbase` API used by
-# `z_shieldcoinbase`. Drop this block when librustzcash crates are
-# released to crates.io at a version that includes that API.
-equihash = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-f4jumble = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-transparent = { package = "zcash_transparent", git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_address = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_client_backend = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_client_sqlite = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_encoding = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_history = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_keys = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_primitives = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_proofs = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
-zcash_protocol = { git = "https://github.com/zcash/librustzcash.git", rev = "dad6ebed5c0d8714a095667c7b10df749d5e44d2" }
+# (zcash/librustzcash@2c4e6c769c). The 0.23.0 release (cut from
+# `release/nu6.2-library-stack`) was forked off main before PR #2353
+# landed, so the released zcash_client_backend 0.23.0 does NOT contain
+# `propose_shielding_coinbase` and the related `WalletTransparentOutput`
+# /`rewind_to_chain_state` API surface that `z_shieldcoinbase` depends
+# on. Drop this block once a librustzcash release that includes
+# `propose_shielding_coinbase` is published to crates.io.
+equihash = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+f4jumble = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+transparent = { package = "zcash_transparent", git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_address = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_client_backend = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_client_sqlite = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_encoding = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_history = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_keys = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_primitives = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_proofs = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
+zcash_protocol = { git = "https://github.com/zcash/librustzcash.git", rev = "2c4e6c769c2e70e71f14c9cf95f2dccfdb7ef239" }
 
 # TEMPORARY: All `core2` versions on crates.io were yanked by upstream on
 # 2026-04-14, breaking fresh dependency resolution because we still pull
