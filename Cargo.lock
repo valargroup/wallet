@@ -625,7 +625,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.11.0",
  "lazy_static",
  "lazycell",
  "log",
@@ -3063,15 +3063,6 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
 dependencies = [
  "either",
 ]
@@ -7418,7 +7409,7 @@ dependencies = [
 [[package]]
 name = "zaino-common"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
+source = "git+https://github.com/valargroup/zaino.git?rev=9a1171f31362126d8751481005dea725d435d863#9a1171f31362126d8751481005dea725d435d863"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -7428,7 +7419,7 @@ dependencies = [
 [[package]]
 name = "zaino-fetch"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
+source = "git+https://github.com/valargroup/zaino.git?rev=9a1171f31362126d8751481005dea725d435d863#9a1171f31362126d8751481005dea725d435d863"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
@@ -7455,7 +7446,7 @@ dependencies = [
 [[package]]
 name = "zaino-proto"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
+source = "git+https://github.com/valargroup/zaino.git?rev=9a1171f31362126d8751481005dea725d435d863#9a1171f31362126d8751481005dea725d435d863"
 dependencies = [
  "prost 0.13.5",
  "tonic 0.12.3",
@@ -7466,7 +7457,7 @@ dependencies = [
 [[package]]
 name = "zaino-state"
 version = "0.1.2"
-source = "git+https://github.com/zingolabs/zaino.git?rev=15b81f110349b34090341b3ab8b7cd58c7b9aeef#15b81f110349b34090341b3ab8b7cd58c7b9aeef"
+source = "git+https://github.com/valargroup/zaino.git?rev=9a1171f31362126d8751481005dea725d435d863#9a1171f31362126d8751481005dea725d435d863"
 dependencies = [
  "arc-swap",
  "async-trait",
