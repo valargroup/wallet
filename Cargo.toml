@@ -207,10 +207,10 @@ age = { git = "https://github.com/str4d/rage.git", rev = "92f437bc2a061312fa6633
 zewif = { git = "https://github.com/zcash/zewif.git", rev = "f84f80612813ba00a0a8a9a5f060bd217fa981cc" }
 zewif-zcashd = { git = "https://github.com/zcash/zewif-zcashd.git", rev = "9c72d1805c269f88ea5caa4eb33c6d38013b9776" }
 
-zaino-common = { git = "https://github.com/valargroup/zaino.git", rev = "e2b356a95467b38742b52ad241d35a1557bc28d2" }
-zaino-fetch = { git = "https://github.com/valargroup/zaino.git", rev = "e2b356a95467b38742b52ad241d35a1557bc28d2" }
-zaino-proto = { git = "https://github.com/valargroup/zaino.git", rev = "e2b356a95467b38742b52ad241d35a1557bc28d2" }
-zaino-state = { git = "https://github.com/valargroup/zaino.git", rev = "e2b356a95467b38742b52ad241d35a1557bc28d2" }
+zaino-common = { git = "https://github.com/valargroup/zaino.git", rev = "e48ae9722e32f994f441992e1a70bc5ea737460e" }
+zaino-fetch = { git = "https://github.com/valargroup/zaino.git", rev = "e48ae9722e32f994f441992e1a70bc5ea737460e" }
+zaino-proto = { git = "https://github.com/valargroup/zaino.git", rev = "e48ae9722e32f994f441992e1a70bc5ea737460e" }
+zaino-state = { git = "https://github.com/valargroup/zaino.git", rev = "e48ae9722e32f994f441992e1a70bc5ea737460e" }
 
 [profile.release]
 debug = "line-tables-only"
